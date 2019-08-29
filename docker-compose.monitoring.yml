@@ -1,0 +1,77 @@
+version: '3.7'
+
+services:       
+  elasticsearch:    
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.3.1
+    container_name: sugcon-elasticsearch
+    labels: 
+      - "traefik.port=9200"            
+      - "traefik.backend=elasticsearch"
+      - "traefik.frontend.rule=Host:elasticsearch.docker.local"     
+    environment: 
+      - discovery.type=single-node
+      - cluster.name=docker-cluster
+      - bootstrap.memory_lock=true
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    volumes:
+      - ./devops/docker/elasticsearch/volumes-linux/data:/usr/share/elasticsearch/data
+  
+  kibana:
+    image: docker.elastic.co/kibana/kibana:7.3.1
+    container_name: sugcon-kibana
+    labels: 
+      - "traefik.port=5601"            
+      - "traefik.backend=kibana"
+      - "traefik.frontend.rule=Host:kibana.docker.local" 
+    command: /usr/local/bin/kibana-docker --allow-root
+    depends_on: 
+      - elasticsearch  
+    
+  logstash:
+    image: sugcon-logstash
+    container_name: sugcon-logstash
+    isolation: process 
+    build: 
+      context: .\devops\docker\logstash
+    labels: 
+      - "traefik.port=5044"            
+      - "traefik.backend=logstash"
+      - "traefik.frontend.rule=Host:logstash.docker.local" 
+    volumes: 
+      - .\devops\docker\logstash\volumes\data:c:/data
+      - .\devops\docker\logstash\volumes\logs:c:/logs      
+    depends_on:       
+      - elasticsearch
+
+  filebeat:    
+    image: sugcon-filebeat    
+    container_name: sugcon-filebeat
+    isolation: process 
+    build: 
+      context: .\devops\docker\filebeat
+    volumes: 
+      - .\devops\docker\filebeat\volumes\data:c:/data
+      - .\devops\docker\filebeat\volumes\logs:c:/logs
+      - .\devops\docker\cm\volumes\logs:c:/watch-logs
+    depends_on: 
+      - logstash 
+      
+  metricbeat:    
+    image: sugcon-metricbeat    
+    container_name: sugcon-metricbeat
+    isolation: process 
+    build: 
+      context: .\devops\docker\metricbeat    
+    volumes: 
+      - .\devops\docker\metricbeat\volumes\data:c:/data
+      - .\devops\docker\metricbeat\volumes\logs:c:/logs      
+      - type: npipe
+        source: \\.\pipe\docker_engine
+        target: \\.\pipe\docker_engine       
+    depends_on: 
+      - kibana 
+
+networks:
+  default:
+    external:
+      name: nat

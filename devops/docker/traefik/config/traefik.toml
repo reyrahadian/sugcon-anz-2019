@@ -1,0 +1,54 @@
+logLevel = "DEBUG"
+################################################################
+# Enable API/Dashboard
+################################################################
+# API definition
+# Warning: Enabling API will expose Traefik's configuration.
+# It is not recommended in production,
+# unless secured by authentication and authorizations
+[api]
+  # Name of the related entry point
+  #
+  # Optional
+  # Default: "traefik"
+
+  #
+  entryPoint = "traefik"
+
+  # Enable Dashboard
+  #
+  # Optional
+  # Default: true
+  #
+  dashboard = true
+
+  # Enable debug mode.
+  # This will install HTTP handlers to expose Go expvars under /debug/vars and
+  # pprof profiling data under /debug/pprof/.
+  # Additionally, the log level will be set to DEBUG.
+  #
+  # Optional
+  # Default: false
+  #
+  debug = true
+
+################################################################
+# Docker configuration backend
+################################################################
+[docker]
+  # Docker server endpoint. Can be a tcp or a unix socket endpoint.
+  #
+  # Required
+  #
+  endpoint = "npipe:////./pipe/docker_engine"
+  # Default base domain used for the frontend rules.
+  # Can be overridden by setting the "traefik.domain" label on a container.
+  #
+  # Optional
+  #
+  domain = "docker.local"
+  # Enable watch docker changes.
+  #
+  # Optional
+  #
+  watch = true

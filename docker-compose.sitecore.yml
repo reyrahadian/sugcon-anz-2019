@@ -1,0 +1,52 @@
+version: '3.7'
+
+services:    
+  sql:
+    image: akqahub.azurecr.io/sitecore-xm1-sqldev:9.2.0-windowsservercore-1903
+    container_name: sugcon-sql   
+    isolation: process
+    volumes:
+      - .\devops\docker\sql\volumes\data:C:\Data        
+    isolation: process
+
+  solr:
+    image: akqahub.azurecr.io/sitecore-xm1-solr:9.2.0-nanoserver-1903
+    container_name: sugcon-solr
+    isolation: process    
+    volumes:
+      - .\devops\docker\solr\volumes\data:C:\Data              
+
+  cm:
+    image: sugcon-cm    
+    container_name: sugcon-cm
+    isolation: process
+    build: 
+      context: .\devops\docker\cm       
+    ports: 
+      - 6001:80
+    volumes:      
+      - .\artifacts\output:C:\src
+      - .\devops\docker\cm\volumes\logs:C:\inetpub\sc\App_Data\logs           
+    depends_on:
+      - sql
+      - solr      
+      
+  cd:
+    image: sugcon-cd
+    container_name: sugcon-cd
+    isolation: process
+    build: 
+      context: .\devops\docker\cd           
+    ports: 
+      - 6002:80      
+    volumes:      
+      - .\artifacts\output:C:\src
+      - .\devops\docker\cd\volumes\logs:C:\inetpub\sc\App_Data\logs           
+    depends_on:
+      - sql
+      - solr     
+        
+networks:
+  default:
+    external:
+      name: nat

@@ -1,0 +1,88 @@
+version: '3.7'
+
+services:    
+  traefik: 
+    image: sugcon-traefik      
+    container_name: sugcon-traefik
+    build: 
+      context: .\devops\docker\traefik
+    command: --configFile=c:/traefik/config/traefik.toml
+    isolation: process 
+    ports:
+      - "36000:8080" 
+      - "36001:443"
+      - "36002:80"    
+    volumes:
+      - .\devops\docker\traefik\config:C:/traefik/config
+      - type: npipe
+        source: \\.\pipe\docker_engine
+        target: \\.\pipe\docker_engine  
+
+  sql:
+    image: akqahub.azurecr.io/sitecore-xm1-sqldev:9.2.0-windowsservercore-1903
+    container_name: sugcon-sql
+    isolation: process 
+    labels: 
+      - "traefik.port=1433"            
+      - "traefik.backend=sql"
+      - "traefik.frontend.rule=Host:sql.docker.local" 
+    volumes:
+      - .\devops\docker\sql\volumes\data:C:\Data        
+
+  solr:
+    image: akqahub.azurecr.io/sitecore-xm1-solr:9.2.0-nanoserver-1903
+    container_name: sugcon-solr
+    isolation: process 
+    labels: 
+      - "traefik.port=8983"            
+      - "traefik.backend=solr"
+      - "traefik.frontend.rule=Host:solr.docker.local" 
+    volumes:
+      - .\devops\docker\solr\volumes\data:C:\Data          
+
+  cm:
+    image: sugcon-cm    
+    container_name: sugcon-cm
+    isolation: process 
+    build: 
+      context: .\devops\docker\cm    
+    labels: 
+      - "traefik.port=80"            
+      - "traefik.backend=cm"
+      - "traefik.frontend.rule=Host:cm.docker.local"         
+    environment: 
+      - DEV_ENVIRONMENT=1    
+    ports: 
+      - 6001:80
+      - 4020:4020
+      - 4021:4021  
+    volumes:      
+      - .\artifacts\output:C:\src
+      - .\devops\docker\cm\volumes\logs:C:\inetpub\sc\App_Data\logs           
+    depends_on:
+      - sql
+      - solr  
+      
+  cd:
+    image: sugcon-cd
+    container_name: sugcon-cd
+    isolation: process 
+    build: 
+      context: .\devops\docker\cd    
+    labels: 
+      - "traefik.port=80"            
+      - "traefik.backend=cd"
+      - "traefik.frontend.rule=Host:cd.docker.local"    
+    ports: 
+      - 6002:80      
+    volumes:      
+      - .\artifacts\output:C:\src
+      - .\devops\docker\cd\volumes\logs:C:\inetpub\sc\App_Data\logs           
+    depends_on:
+      - sql
+      - solr          
+        
+networks:
+  default:
+    external:
+      name: nat

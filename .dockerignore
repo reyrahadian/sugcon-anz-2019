@@ -1,0 +1,5 @@
+# exclude Visual Studio files
+.vs
+
+devops\docker\**\volumes
+devops\docker\**\volumes-linux

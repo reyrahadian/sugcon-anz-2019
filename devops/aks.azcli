@@ -1,0 +1,51 @@
+# Enable Azure Preview Features
+az feature register --name WindowsPreview --namespace Microsoft.ContainerService
+az feature register --name MultiAgentpoolPreview --namespace Microsoft.ContainerService
+az feature register --name VMSSPreview --namespace Microsoft.ContainerService
+az feature register --name AKSAzureStandardLoadBalancer --namespace Microsoft.ContainerService
+
+az provider register -n Microsoft.ContainerService
+
+# Create new Azure Kubernetes Cluster
+az group create `
+    --name sugcon `
+    --location australiaeast
+
+az aks create `
+    --resource-group sugcon `
+    --name sugcon-aks `
+    --node-count 1 `
+    --enable-addons http_application_routing,monitoring `
+    --kubernetes-version 1.14.6 `
+    --load-balancer-sku standard `
+    --generate-ssh-keys `
+    --windows-admin-password "" `
+    --windows-admin-username azureuser `
+    --enable-vmss `
+    --network-plugin azure
+
+az aks nodepool add `
+    --resource-group sugcon `
+    --cluster-name sugcon-aks `
+    --os-type Windows `
+    --node-vm-size Standard_D4s_v3 `
+    --name npwin `
+    --node-count 1 `
+    --kubernetes-version 1.14.6
+
+# Access Kubernetes dashboard
+az aks get-credentials -g sugcon -n sugcon-aks
+kubectl create clusterrolebinding kubernetes-dashboard --clusterrole=cluster-admin --serviceaccount=kube-system:kubernetes-dashboard
+az aks browse -g sugcon -n sugcon-aks
+
+# Helm setup
+kubectl create clusterrolebinding tiller --clusterrole=cluster-admin --serviceaccount=kube-system:tiller
+kubectl create clusterrolebinding default --clusterrole=cluster-admin --serviceaccount=kube-system:default
+
+helm init --node-selectors "beta.kubernetes.io/os=linux"
+
+# Give AKS cluster pull access to Azure Container Registry
+$CLIENT_ID=$(az aks show --resource-group sugcon --name sugcon-aks --query "servicePrincipalProfile.clientId" --output tsv)
+$ACR_ID=$(az acr show --name akqahub --resource-group akqa-apac-devops --query "id" --output tsv)
+az role assignment create --assignee $CLIENT_ID --role acrpull --scope $ACR_ID
+
